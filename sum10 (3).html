@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SUM 10 — El Juego</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --accent1:#f0c040; --accent2:#e05555; --accent3:#55aaee;
+  --p1:#f0c040; --p2:#e05555; --win-glow:#00ffaa;
+  --radius:4px; --trans:0.22s ease;
+}
+[data-theme="dark"] {
+  --bg:#0d0d0f; --bg2:#111118; --panel:#13131a; --panel2:#1a1a26;
+  --border:#3a3a52; --text:#e8e8f0; --muted:#666680;
+  --cell:#1e1e30; --cell-hover:#28283e; --scanline:rgba(0,0,0,0.08);
+  --cell-border:#404060;
+}
+[data-theme="light"] {
+  --bg:#f2f0e8; --bg2:#e8e6dc; --panel:#faf9f4; --panel2:#edeade;
+  --border:#b8b49e; --text:#1a1a2e; --muted:#7a7860;
+  --cell:#dedad0; --cell-hover:#ccc8ba; --scanline:rgba(0,0,0,0.025);
+  --cell-border:#a8a490;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body {
+  background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;
+  min-height:100vh;display:flex;flex-direction:column;align-items:center;
+  padding:clamp(10px,2.5vw,20px);overflow-x:hidden;
+  transition:background var(--trans),color var(--trans);
+}
+body::before {
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,var(--scanline) 2px,var(--scanline) 4px);
+}
+
+/* ── TOPBAR ── */
+.topbar {
+  width:100%;max-width:760px;
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:8px;
+}
+.topbar-group { display:flex;gap:6px;align-items:center; }
+.icon-btn {
+  width:38px;height:38px;border-radius:var(--radius);
+  border:1px solid var(--border);background:var(--panel);
+  color:var(--muted);font-size:17px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all var(--trans);flex-shrink:0;touch-action:manipulation;
+}
+.icon-btn:hover,.icon-btn.on { border-color:var(--accent1);color:var(--accent1);background:rgba(240,192,64,0.1); }
+
+/* ── HEADER ── */
+.header { text-align:center; }
+.logo {
+  font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(40px,9vw,78px);
+  letter-spacing:0.08em;line-height:1;
+  background:linear-gradient(135deg,var(--accent1) 0%,#ff9900 50%,var(--accent2) 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  filter:drop-shadow(0 0 20px rgba(240,192,64,0.28));
+}
+.subtitle { font-size:10px;letter-spacing:0.32em;color:var(--muted);text-transform:uppercase;margin-top:2px; }
+
+.container { max-width:760px;width:100%; }
+
+/* ── SETUP ── */
+#setup-screen {
+  background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+  padding:clamp(18px,5vw,36px);text-align:center;margin-top:12px;
+}
+#setup-screen h2 {
+  font-family:'Bebas Neue',sans-serif;font-size:clamp(20px,5vw,28px);
+  letter-spacing:0.1em;color:var(--accent1);margin-bottom:20px;
+}
+.mode-buttons { display:flex;gap:10px;justify-content:center;flex-wrap:wrap; }
+.mode-btn {
+  background:transparent;border:2px solid var(--border);color:var(--text);
+  font-family:'DM Mono',monospace;font-size:clamp(11px,2.5vw,13px);
+  letter-spacing:0.08em;padding:clamp(12px,3vw,18px) clamp(18px,4vw,30px);
+  cursor:pointer;border-radius:2px;transition:all 0.15s;text-transform:uppercase;
+  position:relative;overflow:hidden;min-width:110px;touch-action:manipulation;
+}
+.mode-btn::before { content:'';position:absolute;inset:0;background:var(--accent1);opacity:0;transition:opacity 0.15s; }
+.mode-btn:hover { border-color:var(--accent1);color:var(--bg); }
+.mode-btn:hover::before { opacity:1; }
+.mode-btn span { position:relative;z-index:1; }
+.mode-btn .ico { display:block;font-size:clamp(22px,5vw,28px);margin-bottom:5px; }
+.setup-hint { margin-top:20px;font-size:11px;color:var(--muted);letter-spacing:0.12em; }
+.setup-hint strong { color:var(--accent1); }
+
+/* ── MODAL ── */
+.modal-backdrop {
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,0.72);
+  z-index:500;align-items:center;justify-content:center;padding:16px;
+}
+.modal-backdrop.show { display:flex; }
+.modal-card {
+  background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+  padding:clamp(18px,5vw,30px);max-width:430px;width:100%;
+  max-height:88vh;overflow-y:auto;position:relative;
+  animation:card-in 0.25s cubic-bezier(0.34,1.56,0.64,1);
+}
+.modal-card h3 {
+  font-family:'Bebas Neue',sans-serif;font-size:24px;
+  letter-spacing:0.12em;color:var(--accent1);margin-bottom:14px;
+}
+.modal-close {
+  position:absolute;top:10px;right:10px;width:28px;height:28px;
+  background:transparent;border:1px solid var(--border);border-radius:2px;
+  color:var(--muted);font-size:14px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;transition:all var(--trans);
+}
+.modal-close:hover { color:var(--accent2);border-color:var(--accent2); }
+.rules-content { font-size:12px;color:var(--muted);line-height:1.9; }
+.rules-content strong { color:var(--accent1); }
+.rule-item {
+  display:flex;gap:10px;align-items:flex-start;
+  margin-bottom:8px;padding:9px 11px;
+  background:var(--panel2);border-radius:2px;border-left:2px solid var(--border);
+  transition:border-color var(--trans);
+}
+.rule-item:hover { border-left-color:var(--accent1); }
+.rule-ico { font-size:16px;flex-shrink:0;margin-top:1px; }
+.example-sums { display:flex;gap:7px;flex-wrap:wrap;margin-top:10px; }
+.sum-pill {
+  background:rgba(240,192,64,0.1);border:1px solid rgba(240,192,64,0.25);
+  border-radius:20px;padding:3px 11px;font-size:11px;color:var(--accent1);
+  font-family:'Bebas Neue',sans-serif;letter-spacing:0.08em;
+}
+
+/* ── GAME ── */
+#game-screen { display:none;margin-top:10px; }
+.score-row { display:flex;justify-content:space-between;gap:7px;margin-bottom:9px; }
+.score-box {
+  background:var(--panel);border:1px solid var(--border);border-radius:2px;
+  padding:7px 10px;text-align:center;flex:1;
+}
+.score-box .s-label { font-size:9px;color:var(--muted);letter-spacing:0.18em;text-transform:uppercase; }
+.score-box .s-val { font-family:'Bebas Neue',sans-serif;font-size:clamp(20px,4.5vw,26px); }
+.score-box.p1 .s-val { color:var(--p1); }
+.score-box.p2 .s-val { color:var(--p2); }
+
+.game-layout {
+  display:grid;
+  grid-template-columns:clamp(130px,21vw,178px) 1fr clamp(130px,21vw,178px);
+  gap:clamp(7px,1.8vw,16px);align-items:start;
+}
+
+/* PANELS */
+.player-panel {
+  background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+  padding:clamp(9px,2.2vw,15px);transition:border-color 0.3s,box-shadow 0.3s;
+}
+.player-panel.active { border-color:var(--accent1);box-shadow:0 0 16px rgba(240,192,64,0.13); }
+.player-panel.p2.active { border-color:var(--accent2);box-shadow:0 0 16px rgba(224,85,85,0.13); }
+.player-name { font-family:'Bebas Neue',sans-serif;font-size:clamp(17px,3.5vw,24px);letter-spacing:0.08em;margin-bottom:4px; }
+.player-panel.p1 .player-name { color:var(--p1); }
+.player-panel.p2 .player-name { color:var(--p2); }
+.turn-indicator {
+  font-size:10px;letter-spacing:0.1em;text-transform:uppercase;
+  padding:3px 6px;border-radius:2px;display:inline-block;margin-bottom:10px;
+}
+.player-panel.p1 .turn-indicator { background:rgba(240,192,64,0.13);color:var(--p1); }
+.player-panel.p2 .turn-indicator { background:rgba(224,85,85,0.13);color:var(--p2); }
+.hand-label { font-size:10px;letter-spacing:0.18em;color:var(--muted);text-transform:uppercase;margin-bottom:7px; }
+.hand { display:flex;flex-direction:column;gap:4px; }
+.hand-row { display:flex;gap:4px;align-items:center; }
+.hand-row .num-label { font-size:10px;color:var(--muted);width:14px; }
+.chip {
+  width:clamp(30px,5.5vw,37px);height:clamp(30px,5.5vw,37px);border-radius:2px;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Bebas Neue',sans-serif;font-size:clamp(17px,3.5vw,22px);
+  cursor:pointer;border:2px solid transparent;transition:all 0.14s;
+  user-select:none;touch-action:manipulation;
+}
+.player-panel.p1 .chip { background:rgba(240,192,64,0.1);color:var(--p1);border-color:rgba(240,192,64,0.26); }
+.player-panel.p2 .chip { background:rgba(224,85,85,0.1);color:var(--p2);border-color:rgba(224,85,85,0.26); }
+.chip.selected { transform:scale(1.14);box-shadow:0 0 12px rgba(240,192,64,0.5); }
+.player-panel.p2 .chip.selected { box-shadow:0 0 12px rgba(224,85,85,0.5); }
+.chip.used { opacity:0.12;cursor:default;pointer-events:none; }
+.chip:not(.used):hover { transform:scale(1.08);border-color:rgba(240,192,64,0.7); }
+.player-panel.p2 .chip:not(.used):hover { border-color:rgba(224,85,85,0.7); }
+
+/* BOARD */
+.board-area { display:flex;flex-direction:column;align-items:center;gap:9px; }
+.status-bar {
+  width:100%;text-align:center;font-size:clamp(10px,2vw,13px);letter-spacing:0.12em;
+  text-transform:uppercase;color:var(--muted);padding:7px 5px;
+  border:1px solid var(--border);border-radius:2px;min-height:34px;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--panel);transition:all 0.28s;
+}
+.status-bar.win { color:var(--win-glow);border-color:var(--win-glow);box-shadow:0 0 14px rgba(0,255,170,0.17);font-family:'Bebas Neue',sans-serif;font-size:clamp(12px,3vw,17px);letter-spacing:0.18em; }
+.status-bar.draw { color:var(--accent3);border-color:var(--accent3); }
+.board { display:grid;grid-template-columns:repeat(4,1fr);gap:clamp(5px,1.2vw,8px);width:100%; }
+.cell {
+  background:var(--cell);
+  border:2px solid var(--cell-border);
+  border-radius:5px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.06), 0 2px 4px rgba(0,0,0,0.18);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Bebas Neue',sans-serif;font-size:clamp(22px,5.5vw,38px);
+  cursor:pointer;transition:all 0.14s;aspect-ratio:1;touch-action:manipulation;
+}
+[data-theme="light"] .cell {
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.7), 0 2px 4px rgba(0,0,0,0.1);
+}
+.cell.p1 { color:var(--p1);border-color:rgba(240,192,64,0.5); }
+.cell.p2 { color:var(--p2);border-color:rgba(224,85,85,0.5); }
+.cell.empty:hover { background:var(--cell-hover);border-color:rgba(140,140,220,0.5);transform:scale(1.04); }
+.cell.win-cell {
+  background:rgba(0,255,170,0.07);border-color:var(--win-glow) !important;
+  box-shadow:inset 0 0 12px rgba(0,255,170,0.13),0 0 10px rgba(0,255,170,0.17);
+  animation:pulse-win 1.2s ease-in-out infinite;
+}
+.cell.win-cell.p1,.cell.win-cell.p2 { color:var(--win-glow); }
+@keyframes pulse-win {
+  0%,100%{box-shadow:inset 0 0 12px rgba(0,255,170,0.13),0 0 10px rgba(0,255,170,0.17);}
+  50%{box-shadow:inset 0 0 20px rgba(0,255,170,0.28),0 0 20px rgba(0,255,170,0.34);}
+}
+.cell.placed { animation:drop-in 0.22s cubic-bezier(0.34,1.56,0.64,1); }
+@keyframes drop-in { from{transform:scale(0.52);opacity:0.2;} to{transform:scale(1);opacity:1;} }
+
+/* CONTROLS */
+.controls { display:flex;gap:7px;width:100%;justify-content:center;flex-wrap:wrap; }
+.btn {
+  background:transparent;border:1px solid var(--border);color:var(--muted);
+  font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.13em;text-transform:uppercase;
+  padding:8px 16px;cursor:pointer;border-radius:2px;transition:all 0.14s;touch-action:manipulation;
+}
+.btn:hover { border-color:var(--text);color:var(--text); }
+.btn.primary { border-color:var(--accent1);color:var(--accent1); }
+.btn.primary:hover { background:var(--accent1);color:var(--bg); }
+
+.ai-thinking {
+  display:none;font-size:9px;color:var(--accent3);letter-spacing:0.2em;
+  text-transform:uppercase;animation:blink 0.8s steps(1) infinite;margin-top:5px;
+}
+.ai-thinking.show { display:block; }
+@keyframes blink { 50%{opacity:0;} }
+
+/* ── WIN OVERLAY ── */
+#win-overlay {
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,0.74);
+  z-index:200;align-items:center;justify-content:center;padding:16px;
+}
+#win-overlay.show { display:flex; }
+.win-card {
+  background:var(--panel);border:2px solid var(--win-glow);border-radius:var(--radius);
+  padding:clamp(24px,6vw,44px);text-align:center;
+  box-shadow:0 0 48px rgba(0,255,170,0.2);
+  animation:card-in 0.3s cubic-bezier(0.34,1.56,0.64,1);max-width:340px;width:100%;
+}
+@keyframes card-in { from{transform:scale(0.65);opacity:0;} to{transform:scale(1);opacity:1;} }
+.win-title { font-family:'Bebas Neue',sans-serif;font-size:clamp(42px,10vw,62px);color:var(--win-glow);line-height:1;letter-spacing:0.1em;filter:drop-shadow(0 0 16px rgba(0,255,170,0.52)); }
+.win-subtitle { font-size:12px;color:var(--text);letter-spacing:0.2em;text-transform:uppercase;margin:6px 0 22px; }
+.win-sum { font-size:11px;color:var(--muted);letter-spacing:0.1em;margin-bottom:26px;font-style:italic; }
+.win-buttons { display:flex;gap:9px;justify-content:center;flex-wrap:wrap; }
+
+/* ── MOBILE ── */
+@media(max-width:580px){
+  .game-layout { grid-template-columns:1fr 1fr;grid-template-rows:auto auto; }
+  #panel-p1 { grid-column:1;grid-row:1; }
+  #panel-p2 { grid-column:2;grid-row:1; }
+  .board-area { grid-column:1/-1;grid-row:2; }
+  .hand { flex-direction:row;flex-wrap:wrap;gap:4px; }
+  .hand-row { gap:3px; }
+  .chip { width:36px;height:36px;font-size:20px; }
+}
+@media(max-width:380px){
+  .chip { width:30px;height:30px;font-size:17px; }
+  .mode-btn { min-width:90px;padding:11px 14px; }
+}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-group">
+    <button class="icon-btn" id="theme-btn" onclick="toggleTheme()" title="Modo día/noche">🌙</button>
+    <button class="icon-btn on" id="sound-btn" onclick="toggleSound()" title="Sonido">🔊</button>
+  </div>
+  <div class="header">
+    <div class="logo">SUM <span id="logo-ten" onclick="eggTap()" style="cursor:pointer;user-select:none;">10</span></div>
+    <div class="subtitle">La suma perfecta</div>
+  </div>
+  <div class="topbar-group">
+    <button class="icon-btn" onclick="openRules()" title="Reglas del juego">ℹ️</button>
+    <button class="icon-btn" onclick="openCopyright()" title="Copyright">©</button>
+  </div>
+</div>
+
+<!-- COPYRIGHT MODAL -->
+<div class="modal-backdrop" id="copyright-modal">
+  <div class="modal-card" style="max-width:320px;text-align:center;">
+    <button class="modal-close" onclick="closeCopyright()">✕</button>
+    <div style="font-size:38px;margin-bottom:10px;">©</div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:0.12em;color:var(--accent1);margin-bottom:6px;">JCaselas + Claude IA</div>
+    <div style="font-size:13px;color:var(--muted);letter-spacing:0.1em;">2026</div>
+    <div style="margin-top:16px;font-size:10px;color:var(--muted);letter-spacing:0.08em;line-height:1.8;">
+      Diseño y concepto: <strong style="color:var(--text)">JCaselas</strong><br>
+      Desarrollo IA: <strong style="color:var(--text)">Claude (Anthropic)</strong><br>
+      Todos los derechos reservados.
+    </div>
+  </div>
+</div>
+
+<!-- EASTER EGG OVERLAY -->
+<div id="egg-overlay" style="display:none;position:fixed;inset:0;z-index:800;pointer-events:none;overflow:hidden;"></div>
+
+<div class="container">
+
+  <!-- SETUP -->
+  <div id="setup-screen">
+    <h2>Elige modo de juego</h2>
+    <div class="mode-buttons">
+      <button class="mode-btn" onclick="startGame('pvp')">
+        <span class="ico">👥</span>
+        <span>2 Jugadores<br><small style="font-size:10px;opacity:0.55">local</small></span>
+      </button>
+      <button class="mode-btn" onclick="startGame('easy')">
+        <span class="ico">🤖</span>
+        <span>vs IA Fácil<br><small style="font-size:10px;opacity:0.55">principiante</small></span>
+      </button>
+      <button class="mode-btn" onclick="startGame('hard')">
+        <span class="ico">🧠</span>
+        <span>vs IA Difícil<br><small style="font-size:10px;opacity:0.55">estratégica</small></span>
+      </button>
+    </div>
+    <p class="setup-hint">Pulsa <strong>ℹ️</strong> para ver las reglas completas</p>
+  </div>
+
+  <!-- GAME -->
+  <div id="game-screen">
+    <div class="score-row">
+      <div class="score-box p1">
+        <div class="s-label" id="score-label-p1">Jugador 1</div>
+        <div class="s-val" id="score-p1">0</div>
+      </div>
+      <div class="score-box" style="flex:0.5">
+        <div class="s-label">Empates</div>
+        <div class="s-val" style="color:var(--muted);font-size:20px" id="score-draws">0</div>
+      </div>
+      <div class="score-box p2">
+        <div class="s-label" id="score-label-p2">Jugador 2</div>
+        <div class="s-val" id="score-p2">0</div>
+      </div>
+    </div>
+
+    <div class="game-layout">
+      <div class="player-panel p1" id="panel-p1">
+        <div class="player-name" id="name-p1">JUG. 1</div>
+        <div class="turn-indicator" id="turn-p1">▶ TU TURNO</div>
+        <div class="hand-label">Fichas</div>
+        <div class="hand" id="hand-p1"></div>
+      </div>
+
+      <div class="board-area">
+        <div class="status-bar" id="status-bar">Selecciona una ficha</div>
+        <div class="board" id="board"></div>
+        <div class="controls">
+          <button class="btn primary" onclick="resetBoard()">Nueva partida</button>
+          <button class="btn" onclick="goHome()">Menú</button>
+        </div>
+      </div>
+
+      <div class="player-panel p2" id="panel-p2">
+        <div class="player-name" id="name-p2">JUG. 2</div>
+        <div class="turn-indicator" id="turn-p2">— ESPERA</div>
+        <div class="hand-label">Fichas</div>
+        <div class="hand" id="hand-p2"></div>
+        <div class="ai-thinking" id="ai-thinking">pensando…</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- RULES MODAL -->
+<div class="modal-backdrop" id="rules-modal">
+  <div class="modal-card">
+    <button class="modal-close" onclick="closeRules()">✕</button>
+    <h3>📋 Reglas</h3>
+    <div class="rules-content">
+      <div class="rule-item">
+        <span class="rule-ico">🎯</span>
+        <div>Forma una línea que sume exactamente <strong>10</strong> usando tus fichas y las del rival.</div>
+      </div>
+      <div class="rule-item">
+        <span class="rule-ico">🃏</span>
+        <div>Cada jugador tiene <strong>8 fichas</strong>: dos de cada número → <strong>1, 1 · 2, 2 · 3, 3 · 4, 4</strong>.</div>
+      </div>
+      <div class="rule-item">
+        <span class="rule-ico">🔄</span>
+        <div>Los jugadores se <strong>turnan</strong>. Primero selecciona tu ficha, luego la casilla.</div>
+      </div>
+      <div class="rule-item">
+        <span class="rule-ico">↔️</span>
+        <div>La línea ganadora puede ser <strong>horizontal, vertical o diagonal</strong> de 3 o 4 celdas.</div>
+      </div>
+      <div class="rule-item">
+        <span class="rule-ico">🤝</span>
+        <div>Si el tablero se llena sin ganador: <strong>empate</strong>.</div>
+      </div>
+      <div style="margin-top:13px;font-size:10px;color:var(--muted);letter-spacing:0.12em;text-transform:uppercase;">Ejemplos válidos (= 10)</div>
+      <div class="example-sums">
+        <span class="sum-pill">1+2+3+4</span>
+        <span class="sum-pill">4+4+2</span>
+        <span class="sum-pill">3+3+4</span>
+        <span class="sum-pill">4+3+2+1</span>
+        <span class="sum-pill">2+4+4</span>
+        <span class="sum-pill">1+4+4+1</span>
+        <span class="sum-pill">4+3+3</span>
+        <span class="sum-pill">2+2+3+3</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- WIN OVERLAY -->
+<div id="win-overlay">
+  <div class="win-card">
+    <div class="win-title" id="win-title">¡VICTORIA!</div>
+    <div class="win-subtitle" id="win-name">Jugador 1</div>
+    <div class="win-sum" id="win-sum">1 + 2 + 3 + 4 = 10</div>
+    <div class="win-buttons">
+      <button class="btn primary" onclick="resetBoard()">Revancha</button>
+      <button class="btn" onclick="goHome()">Menú</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+// AUDIO  (Web Audio API, sin archivos)
+// ═══════════════════════════════════════
+let audioCtx = null;
+let soundEnabled = true;
+
+function ctx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+function playSeq(notes, type='sine', vol=0.16) {
+  if (!soundEnabled) return;
+  try {
+    const c = ctx();
+    let t = c.currentTime;
+    notes.forEach(([freq, dur]) => {
+      const osc = c.createOscillator();
+      const gain = c.createGain();
+      osc.connect(gain); gain.connect(c.destination);
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, t);
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(vol, t + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+      osc.start(t); osc.stop(t + dur + 0.01);
+      t += dur * 0.82;
+    });
+  } catch(e) {}
+}
+
+const sfxPlace  = () => playSeq([[280, 0.07],[420, 0.09]], 'square', 0.11);
+const sfxSelect = () => playSeq([[520, 0.06]], 'sine', 0.09);
+const sfxWin    = () => playSeq([[330,0.1],[415,0.1],[523,0.1],[622,0.1],[784,0.35]], 'sine', 0.2);
+const sfxLose   = () => playSeq([[440,0.14],[370,0.14],[294,0.14],[220,0.32]], 'sine', 0.17);
+const sfxDraw   = () => playSeq([[330,0.1],[330,0.1],[220,0.28]], 'triangle', 0.14);
+
+function toggleSound() {
+  soundEnabled = !soundEnabled;
+  const btn = document.getElementById('sound-btn');
+  btn.textContent = soundEnabled ? '🔊' : '🔇';
+  btn.classList.toggle('on', soundEnabled);
+}
+
+// ═══════════════════════════════════════
+// THEME
+// ═══════════════════════════════════════
+let darkMode = true;
+function toggleTheme() {
+  darkMode = !darkMode;
+  document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+  document.getElementById('theme-btn').textContent = darkMode ? '🌙' : '☀️';
+}
+
+// ═══════════════════════════════════════
+// RULES MODAL
+// ═══════════════════════════════════════
+function openRules()  { document.getElementById('rules-modal').classList.add('show'); }
+function closeRules() { document.getElementById('rules-modal').classList.remove('show'); }
+document.getElementById('rules-modal').addEventListener('click', e => { if (e.target===e.currentTarget) closeRules(); });
+
+// ═══════════════════════════════════════
+// GAME STATE
+// ═══════════════════════════════════════
+let MODE = 'pvp';
+let board = [];
+let hands = [null, null];
+let currentPlayer = 0;
+let selectedChip = null;
+let gameOver = false;
+let scores = [0, 0, 0];
+
+const initHand = () => ({1:2,2:2,3:2,4:2});
+
+function startGame(mode) {
+  MODE = mode;
+  document.getElementById('setup-screen').style.display = 'none';
+  document.getElementById('game-screen').style.display = 'block';
+  document.getElementById('name-p1').textContent = 'JUG. 1';
+  document.getElementById('name-p2').textContent = mode==='pvp' ? 'JUG. 2' : 'I.A.';
+  document.getElementById('score-label-p1').textContent = 'Jugador 1';
+  document.getElementById('score-label-p2').textContent = mode==='pvp' ? 'Jugador 2' : 'IA';
+  scores = [0,0,0];
+  updateScores();
+  resetBoard();
+}
+
+function resetBoard() {
+  document.getElementById('win-overlay').classList.remove('show');
+  board = Array.from({length:4}, ()=>Array(4).fill(null));
+  hands[0] = initHand(); hands[1] = initHand();
+  currentPlayer = 0; selectedChip = null; gameOver = false;
+  renderBoard(); renderHands(); updateTurnUI();
+  setStatus('Selecciona una ficha y colócala en el tablero');
+}
+
+function goHome() {
+  document.getElementById('win-overlay').classList.remove('show');
+  document.getElementById('game-screen').style.display = 'none';
+  document.getElementById('setup-screen').style.display = 'block';
+}
+
+// ═══════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════
+function renderBoard() {
+  const b = document.getElementById('board');
+  b.innerHTML = '';
+  for (let r=0;r<4;r++) for (let c=0;c<4;c++) {
+    const el = document.createElement('div');
+    el.className = 'cell';
+    const d = board[r][c];
+    if (d) { el.textContent=d.val; el.classList.add('p'+(d.player+1)); }
+    else { el.classList.add('empty'); el.addEventListener('click', ()=>onCellClick(r,c)); }
+    b.appendChild(el);
+  }
+}
+
+function renderHands() {
+  for (let p=0;p<2;p++) {
+    const cont = document.getElementById('hand-p'+(p+1));
+    cont.innerHTML = '';
+    for (let n=1;n<=4;n++) {
+      const row = document.createElement('div');
+      row.className = 'hand-row';
+      const lbl = document.createElement('span');
+      lbl.className = 'num-label'; lbl.textContent = n+':';
+      row.appendChild(lbl);
+      for (let i=0;i<2;i++) {
+        const chip = document.createElement('div');
+        chip.className = 'chip'; chip.textContent = n;
+        if (i >= hands[p][n]) chip.classList.add('used');
+        if (selectedChip===n && p===currentPlayer && i<hands[p][n]) chip.classList.add('selected');
+        if (p===currentPlayer && !gameOver) chip.addEventListener('click', ()=>selectChip(p,n));
+        row.appendChild(chip);
+      }
+      cont.appendChild(row);
+    }
+  }
+}
+
+function updateTurnUI() {
+  const pp = [document.getElementById('panel-p1'), document.getElementById('panel-p2')];
+  const tt = [document.getElementById('turn-p1'),  document.getElementById('turn-p2')];
+  pp[currentPlayer].classList.add('active');
+  pp[1-currentPlayer].classList.remove('active');
+  tt[currentPlayer].textContent = (MODE!=='pvp'&&currentPlayer===1) ? '▶ PENSANDO' : '▶ TU TURNO';
+  tt[1-currentPlayer].textContent = '— ESPERA';
+  const ai = document.getElementById('ai-thinking');
+  if (MODE!=='pvp' && currentPlayer===1) ai.classList.add('show'); else ai.classList.remove('show');
+}
+
+function setStatus(msg, type='') {
+  const bar = document.getElementById('status-bar');
+  bar.textContent = msg;
+  bar.className = 'status-bar'+(type?' '+type:'');
+}
+
+function updateScores() {
+  document.getElementById('score-p1').textContent = scores[0];
+  document.getElementById('score-p2').textContent = scores[1];
+  document.getElementById('score-draws').textContent = scores[2];
+}
+
+// ═══════════════════════════════════════
+// INTERACTION
+// ═══════════════════════════════════════
+function selectChip(player, value) {
+  if (player!==currentPlayer||gameOver) return;
+  if (MODE!=='pvp'&&currentPlayer===1) return;
+  if (hands[player][value]<=0) return;
+  selectedChip = value; sfxSelect(); renderHands();
+  setStatus('Ficha '+value+' seleccionada — elige una casilla libre');
+}
+
+function onCellClick(r, c) {
+  if (gameOver) return;
+  if (MODE!=='pvp'&&currentPlayer===1) return;
+  if (selectedChip===null) { setStatus('⚠ Primero selecciona una ficha'); return; }
+  if (board[r][c]) return;
+  placeChip(currentPlayer, r, c, selectedChip);
+}
+
+function placeChip(player, r, c, val) {
+  board[r][c]={val,player}; hands[player][val]--; selectedChip=null;
+  sfxPlace(); renderBoard();
+  document.querySelectorAll('.cell')[r*4+c].classList.add('placed');
+
+  const result = checkWin();
+  if (result) {
+    highlightWin(result.cells);
+    const pname = player===0?'JUGADOR 1':(MODE==='pvp'?'JUGADOR 2':'IA');
+    scores[player]++; updateScores();
+    setStatus('¡'+pname+' gana!','win');
+    // sound: human wins → ascending; human loses to AI → descending
+    if (player===0 || MODE==='pvp') sfxWin(); else sfxLose();
+    setTimeout(()=>{
+      document.getElementById('win-title').textContent='¡VICTORIA!';
+      document.getElementById('win-name').textContent=pname;
+      document.getElementById('win-sum').textContent=result.vals.join(' + ')+' = 10';
+      document.getElementById('win-overlay').classList.add('show');
+    }, 880);
+    gameOver=true; renderHands(); return;
+  }
+
+  const total = [0,1].reduce((a,p2)=>a+Object.values(hands[p2]).reduce((x,y)=>x+y,0),0);
+  if (total===0) {
+    scores[2]++; updateScores(); sfxDraw();
+    setStatus('¡Empate! El tablero está lleno','draw');
+    gameOver=true; renderHands(); return;
+  }
+
+  currentPlayer = 1-currentPlayer; renderHands(); updateTurnUI();
+  if (MODE!=='pvp'&&currentPlayer===1) {
+    setStatus('IA pensando…'); setTimeout(aiMove, 680);
+  } else {
+    const pn=currentPlayer===0?'Jugador 1':(MODE==='pvp'?'Jugador 2':'IA');
+    setStatus('Turno de '+pn+' — selecciona ficha y casilla');
+  }
+}
+
+// ═══════════════════════════════════════
+// WIN DETECTION
+// ═══════════════════════════════════════
+function buildLines() {
+  const L=[];
+  for(let r=0;r<4;r++){
+    L.push([[r,0],[r,1],[r,2],[r,3]]);
+    for(let c=0;c<=1;c++) L.push([[r,c],[r,c+1],[r,c+2]]);
+  }
+  for(let c=0;c<4;c++){
+    L.push([[0,c],[1,c],[2,c],[3,c]]);
+    for(let r=0;r<=1;r++) L.push([[r,c],[r+1,c],[r+2,c]]);
+  }
+  // diagonales ↘ de longitud 4 y 3
+  L.push([[0,0],[1,1],[2,2],[3,3]]);
+  L.push([[0,0],[1,1],[2,2]], [[1,1],[2,2],[3,3]]);
+  L.push([[0,1],[1,2],[2,3]], [[1,0],[2,1],[3,2]]);
+  // diagonales ↙ de longitud 4 y 3
+  L.push([[0,3],[1,2],[2,1],[3,0]]);
+  L.push([[0,3],[1,2],[2,1]], [[1,2],[2,1],[3,0]]);
+  L.push([[0,2],[1,1],[2,0]], [[1,3],[2,2],[3,1]]);
+  return L;
+}
+const LINES = buildLines();
+
+function checkWinOnBoard(b) {
+  return LINES.some(line=>
+    line.every(([r,c])=>b[r][c]) &&
+    line.reduce((a,[r,c])=>a+b[r][c].val,0)===10
+  );
+}
+
+function checkWin() {
+  for(const line of LINES){
+    if(!line.every(([r,c])=>board[r][c])) continue;
+    if(line.reduce((a,[r,c])=>a+board[r][c].val,0)===10)
+      return {cells:line, vals:line.map(([r,c])=>board[r][c].val)};
+  }
+  return null;
+}
+
+function highlightWin(cells) {
+  const all=document.querySelectorAll('.cell');
+  cells.forEach(([r,c])=>all[r*4+c].classList.add('win-cell'));
+}
+
+// ═══════════════════════════════════════
+// AI
+// ═══════════════════════════════════════
+function getMoves(player) {
+  const avail=Object.entries(hands[player]).filter(([,v])=>v>0).map(([k])=>+k);
+  const mv=[];
+  for(let r=0;r<4;r++) for(let c=0;c<4;c++) if(!board[r][c]) avail.forEach(val=>mv.push({r,c,val}));
+  return mv;
+}
+
+function simMove(player,r,c,val) {
+  const b=board.map(row=>row.map(cell=>cell?{...cell}:null));
+  b[r][c]={val,player}; return b;
+}
+
+function aiMove() {
+  const moves=getMoves(1); if(!moves.length) return;
+  const chosen=MODE==='easy'?moves[Math.floor(Math.random()*moves.length)]:aiHard(moves);
+  placeChip(1,chosen.r,chosen.c,chosen.val);
+}
+
+function aiHard(moves) {
+  for(const m of moves) if(checkWinOnBoard(simMove(1,m.r,m.c,m.val))) return m;
+  for(const m of getMoves(0)){
+    if(checkWinOnBoard(simMove(0,m.r,m.c,m.val))){
+      const b=moves.find(a=>a.r===m.r&&a.c===m.c); if(b) return b;
+    }
+  }
+  let best=null,bestS=-Infinity;
+  for(const m of moves){
+    const s=LINES.filter(l=>l.some(([r,c])=>r===m.r&&c===m.c)).reduce((acc,line)=>{
+      const sum=line.filter(([r,c])=>board[r][c]).reduce((a,[r,c])=>a+board[r][c].val,0);
+      return acc+(10-sum-m.val>=0?1:0);
+    },0)+(m.r>=1&&m.r<=2&&m.c>=1&&m.c<=2?0.5:0);
+    if(s>bestS){bestS=s;best=m;}
+  }
+  return best||moves[0];
+}
+
+// ═══════════════════════════════════════
+// COPYRIGHT
+// ═══════════════════════════════════════
+function openCopyright()  { document.getElementById('copyright-modal').classList.add('show'); }
+function closeCopyright() { document.getElementById('copyright-modal').classList.remove('show'); }
+document.getElementById('copyright-modal').addEventListener('click', e => { if(e.target===e.currentTarget) closeCopyright(); });
+
+// ═══════════════════════════════════════
+// EASTER EGG — pulsa el "10" diez veces
+// ═══════════════════════════════════════
+let eggCount = 0;
+let eggTimer = null;
+
+function eggTap() {
+  eggCount++;
+  // Visual feedback: shake the 10
+  const el = document.getElementById('logo-ten');
+  el.style.transform = 'scale(1.3) rotate(-8deg)';
+  setTimeout(()=>{ el.style.transition='transform 0.2s'; el.style.transform=''; }, 200);
+
+  clearTimeout(eggTimer);
+  eggTimer = setTimeout(()=>{ eggCount=0; }, 3000); // reset if idle 3s
+
+  if (eggCount >= 10) {
+    eggCount = 0;
+    clearTimeout(eggTimer);
+    triggerEasterEgg();
+  }
+}
+
+function triggerEasterEgg() {
+  // Play a wild ascending glide
+  if (soundEnabled) {
+    try {
+      const c = ctx();
+      const osc = c.createOscillator();
+      const gain = c.createGain();
+      osc.connect(gain); gain.connect(c.destination);
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(110, c.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(1760, c.currentTime + 1.2);
+      gain.gain.setValueAtTime(0.18, c.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 1.4);
+      osc.start(c.currentTime); osc.stop(c.currentTime + 1.5);
+    } catch(e){}
+  }
+
+  // Rain of 10s + confetti emojis
+  const overlay = document.getElementById('egg-overlay');
+  overlay.innerHTML = '';
+  overlay.style.display = 'block';
+  overlay.style.pointerEvents = 'none';
+
+  const items = ['10','🎉','⭐','💥','🔟','✨','🏆','10','💫','🎊'];
+  const colors = ['#f0c040','#e05555','#55aaee','#00ffaa','#ff9900','#cc66ff'];
+
+  for (let i = 0; i < 60; i++) {
+    setTimeout(()=>{
+      const el = document.createElement('div');
+      const item = items[Math.floor(Math.random()*items.length)];
+      const color = colors[Math.floor(Math.random()*colors.length)];
+      const size = 18 + Math.random() * 32;
+      const left = Math.random() * 100;
+      const dur  = 1.8 + Math.random() * 2;
+      const rot  = (Math.random()-0.5)*720;
+
+      el.textContent = item;
+      el.style.cssText = `
+        position:absolute;
+        left:${left}%;top:-60px;
+        font-family:'Bebas Neue',sans-serif;
+        font-size:${size}px;
+        color:${color};
+        filter:drop-shadow(0 0 6px ${color});
+        pointer-events:none;
+        animation: eggFall ${dur}s ease-in forwards;
+        transform-origin: center;
+      `;
+      overlay.appendChild(el);
+    }, i * 40);
+  }
+
+  // CSS animation injected once
+  if (!document.getElementById('egg-style')) {
+    const s = document.createElement('style');
+    s.id = 'egg-style';
+    s.textContent = `
+      @keyframes eggFall {
+        0%   { transform: translateY(0) rotate(0deg) scale(1); opacity:1; }
+        80%  { opacity:1; }
+        100% { transform: translateY(105vh) rotate(var(--rot,360deg)) scale(0.6); opacity:0; }
+      }
+    `;
+    document.head.appendChild(s);
+  }
+
+  // Flash the logo
+  const logo = document.querySelector('.logo');
+  logo.style.transition = 'filter 0.1s';
+  let flashes = 0;
+  const flash = setInterval(()=>{
+    logo.style.filter = flashes%2===0
+      ? 'drop-shadow(0 0 30px #00ffaa) brightness(1.5)'
+      : 'drop-shadow(0 0 20px rgba(240,192,64,0.28))';
+    if (++flashes > 8) clearInterval(flash);
+  }, 150);
+
+  // Show secret message
+  setTimeout(()=>{
+    const msg = document.createElement('div');
+    msg.style.cssText = `
+      position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(0);
+      background:var(--panel);border:2px solid var(--win-glow);border-radius:8px;
+      padding:28px 40px;text-align:center;z-index:900;
+      box-shadow:0 0 60px rgba(0,255,170,0.4);
+      font-family:'Bebas Neue',sans-serif;
+      animation:card-in 0.35s cubic-bezier(0.34,1.56,0.64,1) forwards;
+      pointer-events:auto;cursor:pointer;
+    `;
+    msg.innerHTML = `
+      <div style="font-size:48px;margin-bottom:4px;">🥚</div>
+      <div style="font-size:30px;letter-spacing:0.15em;color:var(--win-glow);">¡HUEVO ENCONTRADO!</div>
+      <div style="font-size:13px;letter-spacing:0.1em;color:var(--muted);margin-top:8px;">
+        Lo sabías, ¿verdad?<br>
+        <span style="color:var(--accent1)">JCaselas × Claude IA</span> te dan las gracias 🏆
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-top:14px;letter-spacing:0.08em;">[ toca para cerrar ]</div>
+    `;
+    msg.onclick = ()=>{ msg.remove(); overlay.style.display='none'; overlay.innerHTML=''; };
+    document.body.appendChild(msg);
+    setTimeout(()=>{ if(msg.parentNode){ msg.remove(); overlay.style.display='none'; overlay.innerHTML=''; }}, 8000);
+  }, 600);
+
+  setTimeout(()=>{ overlay.style.display='none'; overlay.innerHTML=''; }, 6000);
+}
+</script>
+</body>
+</html>
